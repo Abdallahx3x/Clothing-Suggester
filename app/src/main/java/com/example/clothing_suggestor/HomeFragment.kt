@@ -66,7 +66,7 @@ class HomeFragment: Fragment() {
                 response.body?.string()?.let {jsonString->
                     val weatherData = Gson().fromJson(jsonString, WeatherData::class.java)
                     requireActivity().runOnUiThread {
-                        val temperature = weatherData.data.timelines[0].intervals[8].values.temperature
+                        val temperature = weatherData.data.timelines[0].intervals[0].values.temperature
                         binding.text.text= temperature.toString()
 
                         setup(temperature,presentDay())
