@@ -11,6 +11,7 @@ import com.example.clothing_suggestor.util.PrefUtil
 import com.google.gson.Gson
 import okhttp3.*
 import java.io.IOException
+import java.text.SimpleDateFormat
 import java.util.*
 
 
@@ -31,7 +32,6 @@ class HomeFragment: Fragment() {
         savedInstanceState: Bundle?
     ): View? {
         binding= HomeFragmentBinding.inflate(inflater,container,false)
-
 
         makeOKHTTPRequest()
 
@@ -66,10 +66,10 @@ class HomeFragment: Fragment() {
                 response.body?.string()?.let {jsonString->
                     val weatherData = Gson().fromJson(jsonString, WeatherData::class.java)
                     requireActivity().runOnUiThread {
-                        val temperature = weatherData.data.timelines[0].intervals[0].values.temperature
+                        val temperature = weatherData.data.timelines[0].intervals[8].values.temperature
                         binding.text.text= temperature.toString()
 
-                        setup(temperature)
+                        setup(temperature,presentDay())
 
                     }
 
@@ -80,16 +80,21 @@ class HomeFragment: Fragment() {
 
     }
 
+    private fun presentDay(): String {
+        return SimpleDateFormat("EEEE", Locale.ENGLISH).format(Calendar.getInstance().time)
+            .toString()
+    }
 
-
-
-    fun setup(temperature:Double){
+    fun setup(temperature:Double,date:String){
         PrefUtil.initPrefUtil(requireContext())
+        if(PrefUtil.date==null)
+            PrefUtil.date="null"
+
         divideClothesForGroups()
 
-        val listOfClothe=suggestClothesBasedOnTemperature(temperature)
+        val listOfClothe=suggestClothesBasedOnTemperature(temperature,date)
 
-        saveClothes(temperature,listOfClothe)
+        saveClothes(temperature,listOfClothe,date)
 
         val adapter=ClotheAdapter(listOfClothe)
         binding.recyclerClothe.adapter=adapter
@@ -115,8 +120,8 @@ class HomeFragment: Fragment() {
             ,ClotheImage(R.drawable.pants1)
             ,ClotheImage(R.drawable.pants5)
         )
-        val listSummer3=mutableListOf(ClotheImage(R.drawable.summer_tshirt5)
-            , ClotheImage(R.drawable.tshirtf2)
+        val listSummer3=mutableListOf(ClotheImage(R.drawable.summer_tshirt6)
+            , ClotheImage(R.drawable.summer_tshirt7)
             ,ClotheImage(R.drawable.pants1)
             ,ClotheImage(R.drawable.pants5)
             ,ClotheImage(R.drawable.summer_tshirt5)
@@ -161,17 +166,18 @@ class HomeFragment: Fragment() {
 
 
     }
-    private fun suggestClothesBasedOnTemperature(temperature:Double):MutableList<ClotheImage>{
+    private fun suggestClothesBasedOnTemperature(temperature:Double,date:String):MutableList<ClotheImage>{
         var  listOfClothe:MutableList<ClotheImage>
-        if(temperature<25)
+        if(temperature<20)
         {
 
-            if(loadTemp()!=0F&&loadTemp()==temperature.toFloat())
+
+            if(loadDate()!="null"&&loadDate()==date)
                 listOfClothe= loadSaveClothes() as MutableList<ClotheImage>
             else
                 listOfClothe=randomListWinter
 
-            if( loadTemp()!=0F &&listOfClothe==loadSaveClothes()&&loadTemp()!=temperature.toFloat())
+            if(loadDate()!="null" &&listOfClothe==loadSaveClothes()&&loadDate()!=date)
             {
                 val newWinterClothes=winterClothes.filter { it!=loadSaveClothes() }
                 val randomIndex=Random().nextInt(newWinterClothes.size)
@@ -181,12 +187,13 @@ class HomeFragment: Fragment() {
 
         }
         else{
-            if(loadTemp()!=0F&&loadTemp()==temperature.toFloat())
+
+            if(loadDate()!="null"&&loadDate()==date)
                 listOfClothe= loadSaveClothes() as MutableList<ClotheImage>
             else
                 listOfClothe=randomListSummer
 
-            if(loadTemp()!=0F && listOfClothe==loadSaveClothes() && loadTemp()!=temperature.toFloat())
+            if(loadDate()!="null" &&listOfClothe==loadSaveClothes()&&loadDate()!=date)
             {
                 val newSummerClothes=summerClothes.filter { it!=loadSaveClothes() }
                 val randomIndex=Random().nextInt(newSummerClothes.size)
@@ -199,9 +206,10 @@ class HomeFragment: Fragment() {
 
     }
 
-    private fun saveClothes(temperature:Double,listOfClothe:MutableList<ClotheImage>){
+    private fun saveClothes(temperature:Double,listOfClothe:MutableList<ClotheImage>,date:String){
         PrefUtil.clotheList=listOfClothe
         PrefUtil.temperature=temperature.toFloat()
+        PrefUtil.date=date
     }
 
     private fun loadSaveClothes():List<ClotheImage>{
@@ -209,6 +217,9 @@ class HomeFragment: Fragment() {
     }
     private fun loadTemp():Float{
         return PrefUtil.temperature!!.toFloat()
+    }
+    private fun loadDate():String{
+        return PrefUtil.date!!
     }
 
 

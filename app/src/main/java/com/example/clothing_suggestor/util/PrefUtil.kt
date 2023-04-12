@@ -10,6 +10,8 @@ object PrefUtil {
     private const val SHARED_PREFS_NAME="myClothe"
     private const val CLOTHE_KEY="keyClothe"
     private const val TEMP_KEY="keyTemp"
+    private const val DATE_KEY="keyDate"
+
 
 
     fun initPrefUtil(context: Context){
@@ -32,6 +34,13 @@ object PrefUtil {
         set(value){
             val edit=sharedPref?.edit()
             edit?.putFloat(TEMP_KEY, value!!)?.apply()
+        }
+
+    var date: String?
+        get() = sharedPref?.getString(DATE_KEY, null)
+        set(value){
+            val edit= sharedPref?.edit()
+            edit?.putString(DATE_KEY, value!!)?.apply()
         }
 
 }
