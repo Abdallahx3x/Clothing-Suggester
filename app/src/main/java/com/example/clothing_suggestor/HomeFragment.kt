@@ -4,6 +4,7 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.Toast
 import androidx.fragment.app.Fragment
 import com.example.clothing_suggestor.data.DataManager
 import com.example.clothing_suggestor.data.WeatherData
@@ -19,7 +20,6 @@ import java.util.*
 
 class HomeFragment: Fragment() {
     lateinit var binding: HomeFragmentBinding
-
     private val client=OkHttpClient()
 
     override fun onCreateView(
@@ -47,32 +47,43 @@ class HomeFragment: Fragment() {
             .addQueryParameter("units", "metric")
             .addQueryParameter("apikey", "cTAFl4IspRniZXVeIWCVvCheAI3FrhCA")
             .build()
-
         val request=Request.Builder().url(url)
             .build()
 
         client.newCall(request).enqueue(object :Callback{
             override fun onFailure(call: Call, e: IOException){
-                throw Exception("Failed to make HTTP request")
+                requireActivity().runOnUiThread {
+                    Toast.makeText(
+                        context,
+                        "Failed to make HTTP request: ${e.message}",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
 
             }
-
             override fun onResponse(call: Call, response: Response) {
                 response.body?.string()?.let {jsonString->
                     val weatherData = Gson().fromJson(jsonString, WeatherData::class.java)
                     requireActivity().runOnUiThread {
                         val temperature = weatherData.data.timelines[0].intervals[8].values.temperature
                         binding.textTemperature.text= temperature.toString()
-
                         setup(temperature,presentDay())
-
                     }
-
                 }
             }
-
         })
 
+    }
+
+
+    fun setup(temperature:Double,date:String){
+        PrefUtil.initPrefUtil(requireContext())
+
+        val listOfClothe=suggestClothesBasedOnTemperature(temperature,date)
+        saveClothes(listOfClothe,date)
+
+        val adapter=ClotheAdapter(listOfClothe)
+        binding.recyclerClothe.adapter=adapter
     }
 
     private fun presentDay(): String {
@@ -80,24 +91,9 @@ class HomeFragment: Fragment() {
             .toString()
     }
 
-    fun setup(temperature:Double,date:String){
-        PrefUtil.initPrefUtil(requireContext())
-
-        val listOfClothe=suggestClothesBasedOnTemperature(temperature,date)
-
-        saveClothes(listOfClothe,date)
-
-        val adapter=ClotheAdapter(listOfClothe)
-        binding.recyclerClothe.adapter=adapter
-
-
-    }
-
 
     private fun suggestClothesBasedOnTemperature(temperature: Double, date: String): MutableList<ClotheImage> {
         val isColdWeather = temperature < 20
-
-
         val clothesList = if(loadDate() == "null") {
             when {
                 isColdWeather -> randomList(DataManager.winterLists)
@@ -106,23 +102,22 @@ class HomeFragment: Fragment() {
         } else
             when {
                 loadDate() == date -> loadSaveClothes() as MutableList<ClotheImage>
-                isColdWeather -> generateRandomClothesList(DataManager.winterLists, loadSaveClothes(), loadDate(), date)
-                else -> generateRandomClothesList(DataManager.summerLists, loadSaveClothes(), loadDate(), date)
+                isColdWeather -> generateRandomClothesList(DataManager.winterLists, loadSaveClothes())
+                else -> generateRandomClothesList(DataManager.summerLists, loadSaveClothes())
             }
 
         return clothesList
     }
 
+
     private fun generateRandomClothesList(
         clothesSource: MutableList<MutableList<ClotheImage>>,
         savedClothes: List<ClotheImage>,
-        savedDate: String,
-        date: String
     ): MutableList<ClotheImage> {
 
         val randomListOfClothes= randomList(clothesSource)
 
-        return if (savedClothes == randomListOfClothes && savedDate != date) {
+        return if (savedClothes == randomListOfClothes) {
             val filteredClothes = clothesSource.filter { it != randomListOfClothes }
             val randomIndex = Random().nextInt(filteredClothes.size)
             filteredClothes[randomIndex]
@@ -131,20 +126,24 @@ class HomeFragment: Fragment() {
         }
     }
 
+
     private fun randomList(list:MutableList<MutableList<ClotheImage>>):MutableList<ClotheImage>{
         val random= Random()
         val randomIndex=random.nextInt(list.size)
         return list[randomIndex]
     }
 
+
     private fun saveClothes(listOfClothe:MutableList<ClotheImage>,date:String){
         PrefUtil.clotheList=listOfClothe
         PrefUtil.date=date
     }
 
+
     private fun loadSaveClothes():List<ClotheImage>{
         return PrefUtil.clotheList
     }
+
 
     private fun loadDate():String{
         if(PrefUtil.date==null)
@@ -152,5 +151,6 @@ class HomeFragment: Fragment() {
 
         return PrefUtil.date!!
     }
+
 
 }
